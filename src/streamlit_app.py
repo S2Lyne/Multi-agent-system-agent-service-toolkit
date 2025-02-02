@@ -22,6 +22,39 @@ async def main() -> None:
         menu_items={},
     )
 
+    # Hide the streamlit upper-right chrome
+    st.html(
+        """
+        <style>
+        [data-testid="stStatusWidget"] {
+                visibility: hidden;
+                height: 0%;
+                position: fixed;
+            }
+        </style>
+        """,
+    )
+    if st.get_option("client.toolbarMode") != "minimal":
+        st.set_option("client.toolbarMode", "minimal")
+        await asyncio.sleep(0.1)
+        st.rerun()
+
+    if "agent_client" not in st.session_state:
+        load_dotenv()
+        agent_url = os.getenv("AGENT_URL")
+        if not agent_url:
+            host = os.getenv("HOST", "0.0.0.0")
+            port = os.getenv("PORT", 8080)
+            agent_url = f"http://{host}:{port}"
+        try:
+            with st.spinner("Connecting to agent service..."):
+                st.session_state.agent_client = AgentClient(base_url=agent_url)
+        except AgentClientError as e:
+            st.error(f"Error connecting to agent service at {agent_url}: {e}")
+            st.markdown("The service might be booting up. Try again in a few seconds.")
+            st.stop()
+    agent_client: AgentClient = st.session_state.agent_client
+
     if "thread_id" not in st.session_state:
         thread_id = st.query_params.get("thread_id")
         if not thread_id:
